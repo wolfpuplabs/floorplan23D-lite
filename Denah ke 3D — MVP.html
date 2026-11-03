@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Denah ke 3D — MVP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f5f2; --panel:#ffffff; --ink:#1d2321; --muted:#6a736f; --line:#e3e6e1;
+    --accent:#1f7a5c; --accent-ink:#ffffff; --accent-soft:#e3f1ec;
+    --wall:#e6390f; --door:#2563eb; --win:#0ea5b7; --danger:#c2410c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:14px}
+  .app{display:grid;grid-template-columns:350px 1fr;height:100vh}
+  aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:18px 18px 28px}
+  h1{font-size:18px;margin:0 0 2px;letter-spacing:-.01em}
+  .sub{color:var(--muted);margin:0 0 16px;line-height:1.45}
+  .section{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+  .section h2{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;font-weight:600}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--ink);
+       border-radius:9px;padding:9px 12px;font:inherit;font-weight:600;cursor:pointer;width:100%}
+  .btn:hover{border-color:#c8cdc6}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .btn.primary:hover{filter:brightness(1.07)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.sm{padding:6px 9px;font-size:12.5px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .drop{border:1.5px dashed #c6ccc4;border-radius:12px;padding:14px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s}
+  .drop.over{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+  .drop strong{color:var(--ink);display:block;margin-bottom:3px}
+  label.f{display:block;margin:0 0 12px}
+  label.f .top{display:flex;justify-content:space-between;margin-bottom:5px;font-weight:500;font-size:13px}
+  label.f .top span:last-child{color:var(--muted);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit}
+  .hint{color:var(--muted);font-size:12px;line-height:1.45;margin:4px 0 0}
+  .check{display:flex;gap:8px;align-items:center;margin:4px 0 8px;font-weight:500}
+  #preview{width:100%;border-radius:10px;border:1px solid var(--line);background:#fafafa;display:block}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .stat{background:var(--bg);border-radius:9px;padding:8px 10px}
+  .stat b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
+  .stat span{color:var(--muted);font-size:11.5px}
+  .legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;color:var(--muted);font-size:12px;margin:6px 0 0}
+  .legend i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:-1px}
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--bg);border-radius:9px;padding:3px;gap:3px;margin-bottom:8px}
+  .seg button{border:0;background:transparent;font:inherit;font-weight:600;font-size:13px;padding:7px 4px;border-radius:7px;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .card{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:10px}
+  .card-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+  .card-h b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pill{background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12px;border-radius:99px;padding:3px 8px;white-space:nowrap}
+  .pill.busy{background:var(--bg);color:var(--muted)}
+  .rep{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;margin-bottom:10px}
+  .rep td{padding:4px 0;border-bottom:1px solid var(--line)}
+  .rep td:first-child{color:var(--muted)}
+  .rep td:last-child{text-align:right}
+  .rep .arrow{color:var(--muted);padding:0 4px}
+  .rep tr:last-child td{border-bottom:0}
+  .note{font-size:11.5px;color:var(--muted);margin:-4px 0 10px;line-height:1.4}
+  main{position:relative;min-height:0}
+  #viewer{position:absolute;inset:0}
+  #viewer canvas{display:block;width:100%;height:100%;touch-action:none}
+  .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;color:var(--muted);pointer-events:none;text-align:center;padding:20px}
+  .empty b{color:var(--ink);font-size:16px}
+  .toolbar{position:absolute;top:12px;right:12px;display:flex;gap:6px}
+  .toolbar .btn{width:auto;padding:7px 10px;font-size:13px;background:rgba(255,255,255,.92)}
+  .selbar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;flex-wrap:nowrap;white-space:nowrap;justify-content:center;align-items:center;gap:4px;
+          background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:12px;padding:5px;box-shadow:0 4px 18px rgba(0,0,0,.08);max-width:calc(100% - 20px)}
+  .selbar[hidden]{display:none}
+  .selbar .nm{font-weight:600;font-size:12.5px;padding:0 8px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .selbar button{border:0;background:transparent;font:inherit;font-size:12.5px;font-weight:600;padding:7px 9px;border-radius:8px;cursor:pointer;color:var(--ink)}
+  .selbar button:hover{background:var(--bg)}
+  .selbar button.on{background:var(--accent);color:#fff}
+  .selbar button.danger{color:var(--danger)}
+  .selbar .sep{width:1px;height:20px;background:var(--line);margin:0 2px}
+  #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#1d2321;color:#fff;padding:9px 14px;border-radius:9px;
+         opacity:0;transition:.2s;pointer-events:none;font-weight:500;max-width:90vw;text-align:center;z-index:10}
+  #toast.show{opacity:1;transform:translateX(-50%)}
+  /* opening editor */
+  .oped{display:none;margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:8px}
+  .oped.on{display:block}
+  .oped .t{font-size:12px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}
+  .oped .bs{display:flex;flex-wrap:wrap;gap:4px}
+  .oped button{border:1px solid var(--line);background:#fff;font:inherit;font-size:12.5px;font-weight:600;padding:6px 9px;border-radius:7px;cursor:pointer}
+  .oped button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .oped button:disabled{opacity:.4;cursor:not-allowed}
+  #preview{cursor:pointer}
+  /* walk mode */
+  .walkhud{position:absolute;inset:0;pointer-events:none;display:none}
+  .walkhud.on{display:block}
+  .walkhud .hint{position:absolute;left:12px;top:12px;background:rgba(29,35,33,.78);color:#fff;font-size:12.5px;padding:7px 10px;border-radius:9px;max-width:60%;line-height:1.4}
+  .walkhud .exit{position:absolute;right:12px;top:12px;pointer-events:auto;width:auto}
+  .joy{position:absolute;left:22px;bottom:22px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.55);border:1px solid rgba(0,0,0,.08);
+       pointer-events:auto;touch-action:none;backdrop-filter:blur(4px)}
+  .joy i{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:var(--accent);opacity:.9;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+  .crosshair{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:0 0 0 1px rgba(0,0,0,.3)}
+  /* AR modal */
+  .modal{position:fixed;inset:0;background:rgba(20,24,22,.55);display:none;align-items:center;justify-content:center;z-index:20;padding:14px}
+  .modal.on{display:flex}
+  .modal .box{background:#fff;border-radius:16px;width:min(720px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden}
+  .modal .hd{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .modal .hd b{font-size:15px}
+  .modal model-viewer{width:100%;height:min(56vh,460px);background:#eef0ec;--poster-color:#eef0ec}
+  .modal .ft{padding:12px 14px;display:grid;gap:8px}
+  .modal .msg{font-size:12.5px;color:var(--muted);line-height:1.45;margin:0}
+  .modal .seg{margin:0}
+  .modal .seg{grid-template-columns:1fr 1fr}
+  kbd{font:600 11px Inter,sans-serif;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+  @media (max-width:820px){
+    .app{grid-template-columns:1fr;grid-template-rows:54vh auto;height:auto;min-height:100vh}
+    main{order:-1;height:54vh;position:sticky;top:0;z-index:2;border-bottom:1px solid var(--line)}
+    aside{border-right:0}
+    .selbar .nm{display:none}
+    .selbar{flex-wrap:wrap}
+  }
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "fflate":"https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js",
+  "meshoptimizer/":"https://cdn.jsdelivr.net/npm/meshoptimizer@0.21.0/"
+}}
+</script>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <h1>Denah ke 3D</h1>
+    <p class="sub">Unggah gambar denah. Dinding, pintu, dan jendela dideteksi otomatis lalu dibangun jadi model 3D. Tambahkan model 3D sendiri dan unduh semuanya sebagai GLB.</p>
+
+    <div id="drop" class="drop" tabindex="0">
+      <strong>Unggah gambar denah</strong>
+      PNG / JPG, ketuk atau seret ke sini
+      <input id="file" type="file" accept="image/*" hidden>
+    </div>
+    <div style="margin-top:8px"><button id="demo" class="btn">Coba contoh denah</button></div>
+
+    <div class="section">
+      <h2>Ukuran</h2>
+      <div class="row2">
+        <label class="f"><div class="top"><span>Lebar bangunan (m)</span></div>
+          <input id="width" type="number" min="1" max="500" step="0.1" value="12"></label>
+        <label class="f"><div class="top"><span>Tinggi dinding (m)</span></div>
+          <input id="height" type="number" min="0.5" max="20" step="0.1" value="2.8"></label>
+      </div>
+      <p class="hint" style="margin-top:-6px">Lebar diukur dari sisi luar dinding kiri ke kanan. Skala lainnya mengikuti otomatis.</p>
+    </div>
+
+    <div class="section">
+      <h2>Deteksi</h2>
+      <canvas id="preview" width="10" height="10"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--wall)"></i>Dinding</span>
+        <span><i style="background:var(--door)"></i>Pintu</span>
+        <span><i style="background:var(--win)"></i>Jendela</span>
+        <span><i style="background:#8b5cf6"></i>Bukaan tanpa pintu</span>
+      </div>
+      <p class="hint" style="margin-top:6px">Ketuk pintu/jendela di gambar ini untuk mengoreksi jenis atau arah bukaannya.</p>
+      <div id="oped" class="oped">
+        <div class="t"><span id="opedTitle">Bukaan terpilih</span><span id="opedReset" style="cursor:pointer;text-decoration:underline">kembalikan otomatis</span></div>
+        <div class="bs">
+          <button data-type="door">Pintu</button>
+          <button data-type="window">Jendela</button>
+          <button data-type="open">Kosong</button>
+          <button id="opFlip">Balik arah</button>
+          <button id="opHinge">Pindah engsel</button>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b id="sSize">–</b><span>Ukuran (m)</span></div>
+        <div class="stat"><b id="sArea">–</b><span>Luas tapak (m²)</span></div>
+        <div class="stat"><b id="sDoor">–</b><span>Pintu</span></div>
+        <div class="stat"><b id="sWin">–</b><span>Jendela</span></div>
+      </div>
+      <div style="height:14px"></div>
+      <label class="f"><div class="top"><span>Ambang gelap</span><span id="thrV"></span></div>
+        <input id="thr" type="range" min="10" max="250" value="128"></label>
+      <label class="f"><div class="top"><span>Tebal minimum dinding</span><span id="thkV"></span></div>
+        <input id="thk" type="range" min="0" max="10" value="2"></label>
+      <label class="f"><div class="top"><span>Abaikan objek kecil</span><span id="minV"></span></div>
+        <input id="minA" type="range" min="0" max="3000" step="25" value="300"></label>
+      <p class="hint" style="margin:-4px 0 10px">Naikkan <b>tebal minimum</b> kalau tulisan atau perabot ikut terbaca. Turunkan kalau ada dinding yang hilang.</p>
+      <label class="check"><input id="floorTex" type="checkbox" checked> Tampilkan denah di lantai</label>
+    </div>
+
+    <div class="section">
+      <h2>Pintu &amp; jendela</h2>
+      <label class="check"><input id="openOn" type="checkbox" checked> Deteksi pintu &amp; jendela</label>
+      <div class="row3">
+        <label class="f"><div class="top"><span>Tinggi pintu</span></div>
+          <input id="doorH" type="number" min="1" max="5" step="0.05" value="2.1"></label>
+        <label class="f"><div class="top"><span>Ambang</span></div>
+          <input id="sillH" type="number" min="0" max="3" step="0.05" value="0.9"></label>
+        <label class="f"><div class="top"><span>Lebar maks</span></div>
+          <input id="maxGap" type="number" min="0.8" max="6" step="0.1" value="3"></label>
+      </div>
+      <p class="hint" style="margin-top:-6px">Satuan meter. Ambang = tinggi bawah jendela dari lantai. Celah dengan busur bukaan dibaca sebagai pintu (arah &amp; engsel ikut busurnya), celah dengan garis tipis atau di dinding luar jadi jendela, sisanya bukaan kosong.</p>
+    </div>
+
+    <div class="section">
+      <h2>Model 3D</h2>
+      <div class="seg" id="level">
+        <button data-l="ringan">Ringan</button>
+        <button data-l="seimbang" class="on">Seimbang</button>
+        <button data-l="kuat">Kuat</button>
+      </div>
+      <p class="hint" id="levelHint" style="margin:-2px 0 10px"></p>
+      <div id="mdrop" class="drop" tabindex="0">
+        <strong>Unggah model 3D</strong>
+        GLB, GLTF, atau OBJ, otomatis dikompres
+        <input id="mfile" type="file" accept=".glb,.gltf,.obj" hidden multiple>
+      </div>
+      <div style="margin-top:8px"><button id="mdemo" class="btn">Coba contoh model</button></div>
+      <div id="reports"></div>
+      <p class="hint" style="margin-top:10px">Ketuk model di layar untuk memilih. Pintasan: <kbd>G</kbd> geser, <kbd>R</kbd> putar, <kbd>S</kbd> skala, <kbd>D</kbd> duplikat, <kbd>Del</kbd> hapus, <kbd>Esc</kbd> batal pilih.</p>
+    </div>
+
+    <div class="section">
+      <h2>Ekspor</h2>
+      <button id="export" class="btn primary" disabled>Unduh scene lengkap (.glb)</button>
+      <p class="hint">Denah 3D beserta semua model yang ditambahkan, dikemas dalam .zip. Bisa dibuka di Blender, SketchUp, Unity, atau viewer 3D online.</p>
+    </div>
+  </aside>
+
+  <main>
+    <div id="viewer"></div>
+    <div id="empty" class="empty"><b>Belum ada denah</b>Unggah gambar denah, model 3D, atau coba contohnya</div>
+    <div class="toolbar">
+      <button id="viewTop" class="btn">Atas</button>
+      <button id="viewIso" class="btn">3D</button>
+      <button id="walkBtn" class="btn">Jalan</button>
+      <button id="arBtn" class="btn">AR</button>
+    </div>
+    <div id="walkhud" class="walkhud">
+      <div class="crosshair"></div>
+      <div class="hint" id="walkHint">Seret layar untuk melihat sekeliling. Pakai joystick atau W A S D / panah untuk berjalan, Shift untuk lari.</div>
+      <button id="walkExit" class="btn exit">Keluar</button>
+      <div class="joy" id="joy"><i id="joyKnob"></i></div>
+    </div>
+    <div id="selbar" class="selbar" hidden>
+      <span class="nm" id="selName"></span>
+      <button data-mode="translate" class="on">Geser</button>
+      <button data-mode="rotate">Putar</button>
+      <button data-mode="scale">Skala</button>
+      <span class="sep"></span>
+      <button id="selFloor">Ke lantai</button>
+      <button id="selDup">Duplikat</button>
+      <button id="selDel" class="danger">Hapus</button>
+    </div>
+  </main>
+</div>
+<div id="arModal" class="modal">
+  <div class="box">
+    <div class="hd"><b>Lihat di AR</b><button id="arClose" class="btn sm" style="width:auto">Tutup</button></div>
+    <div id="mvWrap"></div>
+    <div class="ft">
+      <div class="seg" id="arScale">
+        <button data-k="1">Ukuran asli</button>
+        <button data-k="0.02" class="on">Miniatur 1:50</button>
+      </div>
+      <button id="arGo" class="btn primary" disabled>Buka kamera AR</button>
+      <button id="arUsdz" class="btn">Unduh untuk iPhone/iPad (USDZ)</button>
+      <p class="msg" id="arMsg">Menyiapkan model…</p>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { MeshoptSimplifier } from 'meshoptimizer/meshopt_simplifier.module.js';
+import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
+import { zipSync } from 'fflate';
+
+const $ = id => document.getElementById(id);
+const ui = {
+  thr:$('thr'), thk:$('thk'), minA:$('minA'), width:$('width'), height:$('height'),
+  floorTex:$('floorTex'), preview:$('preview'), exportBtn:$('export'),
+  openOn:$('openOn'), doorH:$('doorH'), sillH:$('sillH'), maxGap:$('maxGap')
+};
+const nf = n => Math.round(n).toLocaleString('id-ID');
+function fmtBytes(b){
+  if(b < 1024) return b + ' B';
+  if(b < 1048576) return (b/1024).toLocaleString('id-ID',{maximumFractionDigits:0}) + ' KB';
+  return (b/1048576).toLocaleString('id-ID',{maximumFractionDigits:1}) + ' MB';
+}
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg, ms=2600){
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'), ms);
+}
+
+/* ================= 3D scene ================= */
+const viewer = $('viewer');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+viewer.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xeef0ec);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 2000);
+camera.position.set(9, 10, 11);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.495;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb7ae9f, 1.15));
+const sun = new THREE.DirectionalLight(0xffffff, 1.7);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.bias = -0.0005;
+sun.position.set(6, 12, 4);
+scene.add(sun, sun.target);
+const grid = new THREE.GridHelper(400, 400, 0xcfd3cc, 0xe0e3dd);
+grid.position.y = -0.16;
+scene.add(grid);
+
+let model = null, modelSize = 10, walkGrid = null;
+const items = new THREE.Group(); items.name = 'Model';
+scene.add(items);
+
+function resize(){
+  const w = viewer.clientWidth, h = viewer.clientHeight;
+  if(!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(viewer);
+resize();
+
+function fitView(mode='iso'){
+  const s = modelSize * Math.max(1, 1.25 / camera.aspect);
+  controls.target.set(0, 0, 0);
+  if(mode === 'top') camera.position.set(0, s * 1.55, 0.001);
+  else camera.position.set(s * 0.55, s * 0.85, s * 0.95);
+  controls.update();
+}
+$('viewTop').onclick = ()=>fitView('top');
+$('viewIso').onclick = ()=>fitView('iso');
+
+function refreshEmpty(){
+  const has = !!model || items.children.length > 0;
+  $('empty').style.display = has ? 'none' : '';
+  ui.exportBtn.disabled = !has;
+}
+
+/* ================= Plan analysis ================= */
+const MAX_PROC = 800;
+let src = null; // {img, W, H, gray, canvas}
+
+function loadImage(img, opts={}){
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
+  const k = Math.min(1, MAX_PROC / Math.max(iw, ih));
+  const W = Math.max(1, Math.round(iw * k)), H = Math.max(1, Math.round(ih * k));
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d', {willReadFrequently:true});
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  g.drawImage(img, 0, 0, W, H);
+  const d = g.getImageData(0, 0, W, H).data;
+  const gray = new Uint8Array(W * H);
+  for(let i=0, j=0; i<gray.length; i++, j+=4) gray[i] = (d[j]*0.299 + d[j+1]*0.587 + d[j+2]*0.114) | 0;
+  src = {img, W, H, gray, canvas:c};
+  overrides = new Map(); selOpening = null; refreshOpEditor();
+  ui.thr.value = Math.min(200, Math.max(40, otsu(gray)));
+  if(opts.width) ui.width.value = opts.width;
+  update(true);
+}
+
+function otsu(gray){
+  const hist = new Float64Array(256);
+  for(const v of gray) hist[v]++;
+  const total = gray.length;
+  let sum = 0; for(let i=0;i<256;i++) sum += i * hist[i];
+  let sumB = 0, wB = 0, best = 0, t = 128;
+  for(let i=0;i<256;i++){
+    wB += hist[i]; if(!wB) continue;
+    const wF = total - wB; if(!wF) break;
+    sumB += i * hist[i];
+    const mB = sumB / wB, mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) ** 2;
+    if(between > best){ best = between; t = i; }
+  }
+  return t;
+}
+
+// 1D box erosion/dilation along rows (horiz) or columns. edgeFull: outside of image counts as filled for erosion.
+function morph1D(mask, W, H, r, erode, horiz, edgeFull){
+  if(r <= 0) return mask;
+  const out = new Uint8Array(W*H);
+  const len = horiz ? W : H, lines = horiz ? H : W, step = horiz ? 1 : W, win = 2*r+1;
+  for(let l=0; l<lines; l++){
+    const base = horiz ? l*W : l;
+    let cnt = 0;
+    for(let i=-r; i<len; i++){
+      const a = i + r, d = i - r - 1;
+      if(a < len) cnt += mask[base + a*step];
+      if(d >= 0) cnt -= mask[base + d*step];
+      if(i >= 0){
+        const n = Math.min(len-1, i+r) - Math.max(0, i-r) + 1;
+        out[base + i*step] = erode ? (cnt === n && (edgeFull || n === win) ? 1 : 0) : (cnt > 0 ? 1 : 0);
+      }
+    }
+  }
+  return out;
+}
+const morph = (m, W, H, r, erode) => morph1D(morph1D(m, W, H, r, erode, true), W, H, r, erode, false);
+
+function components(mask, W, H, cb){
+  const seen = new Uint8Array(W*H), stack = new Int32Array(W*H), comp = new Int32Array(W*H);
+  for(let i=0;i<mask.length;i++){
+    if(!mask[i] || seen[i]) continue;
+    let sp = 0, n = 0, x0=W, y0=H, x1=0, y1=0;
+    stack[sp++] = i; seen[i] = 1;
+    while(sp){
+      const p = stack[--sp]; comp[n++] = p;
+      const x = p % W, y = (p / W) | 0;
+      if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+      if(x>0   && mask[p-1] && !seen[p-1]){ seen[p-1]=1; stack[sp++]=p-1; }
+      if(x<W-1 && mask[p+1] && !seen[p+1]){ seen[p+1]=1; stack[sp++]=p+1; }
+      if(y>0   && mask[p-W] && !seen[p-W]){ seen[p-W]=1; stack[sp++]=p-W; }
+      if(y<H-1 && mask[p+W] && !seen[p+W]){ seen[p+W]=1; stack[sp++]=p+W; }
+    }
+    cb(comp, n, {x:x0, y:y0, w:x1-x0+1, h:y1-y0+1});
+  }
+}
+
+function removeSmall(mask, W, H, minArea){
+  if(minArea <= 0) return mask;
+  components(mask, W, H, (comp, n)=>{ if(n < minArea) for(let k=0;k<n;k++) mask[comp[k]] = 0; });
+  return mask;
+}
+
+function toRects(mask, W, H){
+  const used = new Uint8Array(W*H), rects = [];
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const i = y*W + x;
+    if(!mask[i] || used[i]) continue;
+    let w = 1; while(x+w < W && mask[i+w] && !used[i+w]) w++;
+    let h = 1;
+    grow: while(y+h < H){
+      const o = (y+h)*W + x;
+      for(let k=0;k<w;k++) if(!mask[o+k] || used[o+k]) break grow;
+      h++;
+    }
+    for(let yy=0; yy<h; yy++) used.fill(1, (y+yy)*W + x, (y+yy)*W + x + w);
+    rects.push([x, y, w, h]);
+  }
+  return rects;
+}
+
+function wallThickness(rects){
+  const v = rects.filter(([,,w,h]) => Math.max(w,h) >= 3*Math.min(w,h) && Math.min(w,h) >= 2)
+                 .map(([,,w,h]) => Math.min(w,h)).sort((a,b)=>a-b);
+  return v.length ? v[(v.length/2)|0] : 6;
+}
+
+// Openings = short, wall-thick gaps between two collinear wall ends.
+// Then classify: door (swing arc next to the gap), window (thin lines inside the gap, or on an exterior wall), or plain opening.
+function detectOpenings(mask, ink, W, H, t, pxPerM){
+  const minPx = Math.max(3, 0.45 * pxPerM), maxPx = Math.max(minPx+2, (+ui.maxGap.value || 3) * pxPerM);
+  const r = Math.ceil(maxPx / 2) + 1;
+  const found = [], sealed = mask.slice();
+  for(const horiz of [true, false]){
+    const closed = morph1D(morph1D(mask, W, H, r, false, horiz), W, H, r, true, horiz, true);
+    let cand = new Uint8Array(W*H);
+    for(let i=0;i<cand.length;i++) cand[i] = closed[i] && !mask[i] ? 1 : 0;
+    // drop 1–2 px slivers along wall edges so they don't join separate gaps
+    const r2 = Math.max(1, Math.round(t * 0.25));
+    cand = morph1D(morph1D(cand, W, H, r2, true, !horiz), W, H, r2, false, !horiz);
+    components(cand, W, H, (comp, n, b)=>{
+      const L = horiz ? b.w : b.h, across = horiz ? b.h : b.w;
+      if(L < minPx || L > maxPx) return;
+      if(across < 0.45*t || across > 1.7*t) return;
+      if(n < 0.6 * b.w * b.h) return;
+      const mid = horiz ? b.y + (b.h>>1) : b.x + (b.w>>1);
+      const e1 = horiz ? mid*W + (b.x-1) : (b.y-1)*W + mid;
+      const e2 = horiz ? mid*W + (b.x+b.w) : (b.y+b.h)*W + mid;
+      if(!mask[e1] || !mask[e2]) return;
+      for(let k=0;k<n;k++) sealed[comp[k]] = 1;
+      found.push({o:{...b, horiz}, L, across});
+    });
+  }
+  // outside = everything reachable from the image border once the openings are sealed
+  const outside = new Uint8Array(W*H), stack = new Int32Array(W*H); let sp = 0;
+  const push = i => { if(!sealed[i] && !outside[i]){ outside[i] = 1; stack[sp++] = i; } };
+  for(let x=0;x<W;x++){ push(x); push((H-1)*W + x); }
+  for(let y=0;y<H;y++){ push(y*W); push(y*W + W-1); }
+  while(sp){
+    const p = stack[--sp], x = p % W;
+    if(x > 0) push(p-1); if(x < W-1) push(p+1);
+    if(p >= W) push(p-W); if(p < W*(H-1)) push(p+W);
+  }
+  return found.map(f => classifyOpening(f.o, mask, ink, outside, W, H, f.L, f.across));
+}
+
+// (a, d): a = position along the gap from its start, d = distance away from the wall face on side `side` (-1 / +1)
+function sidePx(o, side, a, d){
+  if(o.horiz) return [o.x + a, side < 0 ? o.y - 1 - d : o.y + o.h + d];
+  return [side < 0 ? o.x - 1 - d : o.x + o.w + d, o.y + a];
+}
+function classifyOpening(o, mask, ink, outside, W, H, L, across){
+  // thin lines running through the gap
+  let hit = 0;
+  for(let a=1; a<L-1; a++){
+    for(let c=0; c<across; c++){
+      const x = o.horiz ? o.x + a : o.x + c, y = o.horiz ? o.y + c : o.y + a;
+      if(ink[y*W + x]){ hit++; break; }
+    }
+  }
+  const lineFrac = hit / Math.max(1, L-2);
+  // swing arc: test the 4 possible quarter circles (2 sides × 2 hinge ends) directly against the ink,
+  // so furniture or text next to the gap doesn't fool it
+  const inkNear = (x, y) => {
+    for(let dy=-2; dy<=2; dy++) for(let dx=-2; dx<=2; dx++){
+      const xx = x + dx, yy = y + dy;
+      if(xx >= 0 && yy >= 0 && xx < W && yy < H && ink[yy*W + xx] && !mask[yy*W + xx]) return true;
+    }
+    return false;
+  };
+  let bestScore = 0, swing = 1, hinge = 0;
+  for(const sd of [-1, 1]) for(const hg of [0, 1]) for(const rf of [0.85, 0.93, 1]){
+    const R = L * rf, a0 = hg ? L : 0, dir = hg ? -1 : 1;
+    let hits = 0, N = 24;
+    for(let k=0;k<N;k++){
+      const th = (8 + k * (74 / (N-1))) * Math.PI / 180;
+      const [x, y] = sidePx(o, sd, Math.round(a0 + dir * R * Math.cos(th)), Math.round(R * Math.sin(th)));
+      if(inkNear(x, y)) hits++;
+    }
+    const sc = hits / N;
+    if(sc > bestScore){ bestScore = sc; swing = sd; hinge = hg; }
+  }
+  const arc = bestScore >= 0.6;
+  // exterior: one side of the wall touches the outside region
+  let ext = false;
+  for(const sd of [-1, 1]) for(let d=1; d<=4 && !ext; d++){
+    const [x, y] = sidePx(o, sd, L >> 1, d);
+    if(x < 0 || y < 0 || x >= W || y >= H || outside[y*W + x]) ext = true;
+  }
+  let type;
+  if(arc) type = 'door';
+  else if(lineFrac > 0.55) type = 'window';
+  else if(ext) type = 'window';
+  else type = 'open';
+  return {...o, type, swing: arc ? swing : 1, hinge: arc ? hinge : 0, ext, auto:true};
+}
+
+// manual corrections, keyed by the opening's position in the processed image
+let overrides = new Map(), selOpening = null;
+const opKey = o => `${o.horiz ? 'H' : 'V'}:${Math.round((o.x + o.w/2)/6)}:${Math.round((o.y + o.h/2)/6)}`;
+function applyOverrides(list){
+  return list.map(o => { const v = overrides.get(opKey(o)); return v ? {...o, ...v, auto:false} : o; });
+}
+
+let lastRes = null;
+function analyze(){
+  const {W, H, gray} = src;
+  const thr = +ui.thr.value, r = +ui.thk.value;
+  const scale = W / MAX_PROC;
+  const raw = new Uint8Array(W*H), ink = new Uint8Array(W*H);
+  const inkThr = Math.min(235, Math.max(thr + 45, 190));
+  for(let i=0;i<raw.length;i++){ raw[i] = gray[i] < thr ? 1 : 0; ink[i] = gray[i] < inkThr ? 1 : 0; }
+  let mask = morph(morph(raw, W, H, r, true), W, H, r, false); // opening removes thin lines
+  mask = removeSmall(mask, W, H, Math.round(+ui.minA.value * Math.max(scale*scale, 0.15)));
+  let x0=W, y0=H, x1=-1, y1=-1;
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++) if(mask[y*W+x]){
+    if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+  }
+  const bbox = x1 < 0 ? null : {x:x0, y:y0, w:x1-x0+1, h:y1-y0+1};
+  const rects = bbox ? toRects(mask, W, H) : [];
+  let openings = [];
+  if(bbox && ui.openOn.checked){
+    const pxPerM = bbox.w / Math.max(0.1, +ui.width.value || 10);
+    openings = applyOverrides(detectOpenings(mask, ink, W, H, wallThickness(rects), pxPerM));
+  }
+  lastRes = {mask, bbox, rects, openings, W, H};
+  return lastRes;
+}
+
+const OP_COLORS = {door:'rgba(37,99,235,.9)', window:'rgba(14,165,183,.9)', open:'rgba(139,92,246,.85)'};
+function drawPreview(res){
+  const {W, H, canvas} = src, cv = ui.preview;
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  g.globalAlpha = 0.35; g.drawImage(canvas, 0, 0); g.globalAlpha = 1;
+  const ov = g.createImageData(W, H), d = ov.data;
+  for(let i=0, j=0; i<res.mask.length; i++, j+=4) if(res.mask[i]){ d[j]=230; d[j+1]=57; d[j+2]=15; d[j+3]=215; }
+  const oc = document.createElement('canvas'); oc.width = W; oc.height = H;
+  oc.getContext('2d').putImageData(ov, 0, 0);
+  g.drawImage(oc, 0, 0);
+  const lw = Math.max(1.5, W / 400);
+  for(const o of res.openings){
+    g.fillStyle = OP_COLORS[o.type];
+    g.fillRect(o.x - (o.horiz?0:1), o.y - (o.horiz?1:0), o.w + (o.horiz?0:2), o.h + (o.horiz?2:0));
+    if(o.type === 'door'){
+      const L = o.horiz ? o.w : o.h;
+      // hinge point on the wall face of the swing side
+      let hx, hy, lx, ly, fx, fy;
+      if(o.horiz){
+        hx = o.hinge ? o.x + o.w : o.x; hy = o.swing < 0 ? o.y : o.y + o.h;
+        lx = hx; ly = hy + o.swing * L; fx = o.hinge ? o.x : o.x + o.w; fy = hy;
+      } else {
+        hy = o.hinge ? o.y + o.h : o.y; hx = o.swing < 0 ? o.x : o.x + o.w;
+        ly = hy; lx = hx + o.swing * L; fy = o.hinge ? o.y : o.y + o.h; fx = hx;
+      }
+      const a1 = Math.atan2(ly - hy, lx - hx), a2 = Math.atan2(fy - hy, fx - hx);
+      let dlt = a2 - a1; while(dlt > Math.PI) dlt -= 2*Math.PI; while(dlt < -Math.PI) dlt += 2*Math.PI;
+      g.strokeStyle = OP_COLORS.door; g.lineWidth = lw;
+      g.beginPath(); g.moveTo(hx, hy); g.lineTo(lx, ly); g.arc(hx, hy, L, a1, a2, dlt < 0); g.stroke();
+    }
+    if(selOpening && opKey(o) === selOpening){
+      g.strokeStyle = '#111'; g.lineWidth = lw; g.setLineDash([4, 3]);
+      g.strokeRect(o.x - 4, o.y - 4, o.w + 8, o.h + 8); g.setLineDash([]);
+    }
+  }
+}
+
+function refreshOpEditor(){
+  const o = lastRes && selOpening && lastRes.openings.find(x => opKey(x) === selOpening);
+  $('oped').classList.toggle('on', !!o);
+  if(!o) return;
+  $('opedTitle').textContent = (o.auto ? 'Terdeteksi otomatis' : 'Dikoreksi manual') + (o.ext ? ' · dinding luar' : '');
+  $('opedReset').style.visibility = o.auto ? 'hidden' : 'visible';
+  document.querySelectorAll('#oped [data-type]').forEach(b => b.classList.toggle('on', b.dataset.type === o.type));
+  $('opFlip').disabled = $('opHinge').disabled = o.type !== 'door';
+}
+function editOpening(patch){
+  const o = lastRes && lastRes.openings.find(x => opKey(x) === selOpening);
+  if(!o) return;
+  const cur = overrides.get(selOpening) || {type:o.type, swing:o.swing, hinge:o.hinge};
+  overrides.set(selOpening, {...cur, ...patch(cur)});
+  update(false);
+}
+ui.preview.addEventListener('click', e=>{
+  if(!lastRes) return;
+  const r = ui.preview.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width * lastRes.W, y = (e.clientY - r.top) / r.height * lastRes.H;
+  const pad = 6;
+  let best = null, bd = Infinity;
+  for(const o of lastRes.openings){
+    const dx = Math.max(o.x - pad - x, 0, x - (o.x + o.w + pad)), dy = Math.max(o.y - pad - y, 0, y - (o.y + o.h + pad));
+    const dd = Math.hypot(dx, dy);
+    if(dd < bd){ bd = dd; best = o; }
+  }
+  selOpening = best && bd < 10 ? opKey(best) : null;
+  drawPreview(lastRes); refreshOpEditor();
+});
+document.querySelectorAll('#oped [data-type]').forEach(b => b.onclick = ()=>editOpening(()=>({type:b.dataset.type})));
+$('opFlip').onclick = ()=>editOpening(c=>({swing: -c.swing}));
+$('opHinge').onclick = ()=>editOpening(c=>({hinge: c.hinge ? 0 : 1}));
+$('opedReset').onclick = ()=>{ overrides.delete(selOpening); update(false); };
+
+/* ================= Plan → 3D ================= */
+function disposeModel(){
+  if(!model) return;
+  scene.remove(model);
+  model.traverse(o=>{
+    if(o.geometry) o.geometry.dispose();
+    if(o.material){ if(o.material.map) o.material.map.dispose(); o.material.dispose(); }
+  });
+  model = null;
+}
+
+function mergedMesh(boxes, mat, name){
+  if(!boxes.length) return null;
+  const geos = boxes.map(([sx,sy,sz,px,py,pz])=>{ const g = new THREE.BoxGeometry(sx,sy,sz); g.translate(px,py,pz); return g; });
+  const m = new THREE.Mesh(mergeGeometries(geos, false), mat);
+  geos.forEach(g=>g.dispose());
+  m.name = name; m.castShadow = m.receiveShadow = true;
+  return m;
+}
+
+function buildModel(res, refit){
+  disposeModel();
+  const {bbox, rects, openings} = res;
+  $('sDoor').textContent = bbox ? openings.filter(o=>o.type==='door').length : '–';
+  $('sWin').textContent = bbox ? openings.filter(o=>o.type==='window').length : '–';
+  if(!bbox){ $('sSize').textContent='–'; $('sArea').textContent='–'; walkGrid = null; refreshEmpty(); return; }
+  const widthM = Math.max(0.1, +ui.width.value || 10);
+  const hM = Math.max(0.1, +ui.height.value || 2.8);
+  const doorH = Math.min(hM, Math.max(0.5, +ui.doorH.value || 2.1));
+  const sillH = Math.min(doorH - 0.2, Math.max(0, +ui.sillH.value || 0));
+  const s = widthM / bbox.w;
+  const cx = bbox.x + bbox.w/2, cy = bbox.y + bbox.h/2;
+  const wx = x => (x - cx) * s, wz = y => (y - cy) * s;
+  const group = new THREE.Group(); group.name = 'Denah3D';
+
+  const wallMat = new THREE.MeshStandardMaterial({color:0xf1eee8, roughness:0.85});
+  const wallBoxes = rects.map(([x,y,w,h]) => [w*s, hM, h*s, wx(x + w/2), hM/2, wz(y + h/2)]);
+  // lintels and sills become part of the wall mesh
+  const glassBoxes = [], frameBoxes = [], leafBoxes = [];
+  const FR = 0.05;
+  for(const o of openings){
+    const L = (o.horiz ? o.w : o.h) * s, T = (o.horiz ? o.h : o.w) * s;
+    const px = wx(o.x + o.w/2), pz = wz(o.y + o.h/2);
+    const box = (len, thick, y0, y1) => o.horiz ? [len, y1-y0, thick, px, (y0+y1)/2, pz] : [thick, y1-y0, len, px, (y0+y1)/2, pz];
+    if(hM - doorH > 0.01) wallBoxes.push(box(L, T, doorH, hM));
+    if(o.type === 'window'){
+      if(sillH > 0.01) wallBoxes.push(box(L, T, 0, sillH));
+      glassBoxes.push(box(L - 2*FR, 0.02, sillH + FR, doorH - FR));
+      frameBoxes.push(box(L, T*0.5, doorH - FR, doorH), box(L, T*0.5, sillH, sillH + FR));
+      const sx = o.horiz ? [px - L/2 + FR/2, px + L/2 - FR/2] : [px, px], sz = o.horiz ? [pz, pz] : [pz - L/2 + FR/2, pz + L/2 - FR/2];
+      for(let k=0;k<2;k++) frameBoxes.push(o.horiz ? [FR, doorH - sillH, T*0.5, sx[k], (sillH+doorH)/2, sz[k]] : [T*0.5, doorH - sillH, FR, sx[k], (sillH+doorH)/2, sz[k]]);
+    } else if(o.type === 'door'){
+      // leaf opened 90° toward the swing side, hinged at the detected end (matches the arc in the plan)
+      const lt = 0.045, lw = L - 0.04, hh = doorH - 0.02;
+      const along = (o.hinge ? L/2 - lt/2 - 0.02 : -L/2 + lt/2 + 0.02);
+      const out = o.swing * (T/2 + lw/2);
+      if(o.horiz) leafBoxes.push([lt, hh, lw, px + along, hh/2, pz + out]);
+      else leafBoxes.push([lw, hh, lt, px + out, hh/2, pz + along]);
+    }
+  }
+  const CHUNK = 4000;
+  for(let c=0; c<wallBoxes.length; c+=CHUNK){
+    const m = mergedMesh(wallBoxes.slice(c, c+CHUNK), wallMat, 'Dinding');
+    if(m) group.add(m);
+  }
+  const glass = mergedMesh(glassBoxes, new THREE.MeshPhysicalMaterial({color:0xa9d6e5, roughness:0.05, metalness:0, transparent:true, opacity:0.35}), 'Kaca');
+  if(glass){ glass.castShadow = false; group.add(glass); }
+  const frame = mergedMesh(frameBoxes, new THREE.MeshStandardMaterial({color:0x3b4240, roughness:0.6}), 'Kusen');
+  if(frame) group.add(frame);
+  const leaf = mergedMesh(leafBoxes, new THREE.MeshStandardMaterial({color:0x9a6b43, roughness:0.7}), 'Daun pintu');
+  if(leaf) group.add(leaf);
+
+  const fw = bbox.w*s, fd = bbox.h*s;
+  let floorMat;
+  if(ui.floorTex.checked){
+    const iw = src.img.naturalWidth || src.img.width, f = iw / src.W;
+    const scaleUp = Math.min(2048 / Math.max(bbox.w, bbox.h), f);
+    const crop = document.createElement('canvas');
+    crop.width = Math.max(1, Math.round(bbox.w * scaleUp)); crop.height = Math.max(1, Math.round(bbox.h * scaleUp));
+    const cg = crop.getContext('2d');
+    cg.fillStyle = '#fff'; cg.fillRect(0,0,crop.width,crop.height);
+    cg.drawImage(src.img, bbox.x*f, bbox.y*f, bbox.w*f, bbox.h*f, 0, 0, crop.width, crop.height);
+    cg.globalCompositeOperation = 'multiply'; cg.fillStyle = '#efe6d6'; cg.fillRect(0,0,crop.width,crop.height);
+    const tex = new THREE.CanvasTexture(crop);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    floorMat = new THREE.MeshStandardMaterial({map:tex, roughness:0.9});
+  } else {
+    floorMat = new THREE.MeshStandardMaterial({color:0xd8c6a6, roughness:0.9});
+  }
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(fw, fd), floorMat);
+  floor.rotation.x = -Math.PI/2; floor.position.y = 0.002; floor.receiveShadow = true; floor.name = 'Lantai';
+  group.add(floor);
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(fw + 0.4, 0.15, fd + 0.4), new THREE.MeshStandardMaterial({color:0xbdb8ae, roughness:1}));
+  slab.position.y = -0.075; slab.receiveShadow = true; slab.name = 'Pelat';
+  group.add(slab);
+
+  scene.add(group);
+  model = group;
+  modelSize = Math.max(fw, fd, hM);
+  // walk-mode collision grid: walls + windows are solid, doors and plain openings are passable
+  const solid = res.mask.slice();
+  for(const o of openings) if(o.type === 'window'){
+    for(let y=o.y; y<o.y+o.h; y++) solid.fill(1, y*res.W + o.x, y*res.W + o.x + o.w);
+  }
+  walkGrid = {solid, W:res.W, H:res.H, s, cx, cy};
+  const S = modelSize;
+  sun.position.set(S*0.6, S*1.2, S*0.4);
+  Object.assign(sun.shadow.camera, {left:-S, right:S, top:S, bottom:-S, near:0.1, far:S*4});
+  sun.shadow.camera.updateProjectionMatrix();
+
+  $('sSize').textContent = `${fw.toFixed(1)} × ${fd.toFixed(1)}`;
+  $('sArea').textContent = (fw*fd).toFixed(0);
+  refreshEmpty();
+  if(refit) fitView('iso');
+}
+
+/* ================= Plan wiring ================= */
+let pending = 0;
+function labels(){
+  $('thrV').textContent = ui.thr.value;
+  $('thkV').textContent = ui.thk.value + ' px';
+  $('minV').textContent = ui.minA.value;
+}
+function update(refit=false){
+  labels();
+  if(!src) return;
+  cancelAnimationFrame(pending);
+  pending = requestAnimationFrame(()=>{
+    const res = analyze();
+    drawPreview(res);
+    refreshOpEditor();
+    buildModel(res, refit);
+    if(!res.bbox) toast('Tidak ada dinding terdeteksi. Coba naikkan ambang gelap atau turunkan tebal minimum.');
+  });
+}
+let deb;
+const later = ()=>{ labels(); clearTimeout(deb); deb = setTimeout(()=>update(false), 120); };
+[ui.thr, ui.thk, ui.minA, ui.width, ui.height, ui.doorH, ui.sillH, ui.maxGap].forEach(el=>el.addEventListener('input', later));
+[ui.floorTex, ui.openOn].forEach(el=>el.addEventListener('change', ()=>update(false)));
+
+function readPlan(file){
+  if(!file || !file.type.startsWith('image/')){ toast('Pilih file gambar (PNG atau JPG).'); return; }
+  const img = new Image();
+  img.onload = ()=>{ loadImage(img); toast('Denah dimuat. Atur lebar bangunan agar skalanya pas.'); };
+  img.onerror = ()=>toast('Gambar tidak bisa dibaca. Coba PNG atau JPG.');
+  img.src = URL.createObjectURL(file);
+}
+function dropZone(zone, input, onFiles){
+  zone.onclick = ()=>input.click();
+  zone.onkeydown = e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); input.click(); } };
+  input.onchange = ()=>{ onFiles([...input.files]); input.value=''; };
+  ['dragenter','dragover'].forEach(t=>zone.addEventListener(t, e=>{ e.preventDefault(); zone.classList.add('over'); }));
+  ['dragleave','drop'].forEach(t=>zone.addEventListener(t, e=>{ e.preventDefault(); zone.classList.remove('over'); }));
+  zone.addEventListener('drop', e=>onFiles([...e.dataTransfer.files]));
+}
+dropZone($('drop'), $('file'), fs=>readPlan(fs[0]));
+
+function demoPlan(){
+  const c = document.createElement('canvas'); c.width = 1000; c.height = 720;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  const T = 14; g.fillStyle = '#151515';
+  const hs = (x1,x2,y)=>g.fillRect(x1, y, x2-x1, T);
+  const vs = (x,y1,y2)=>g.fillRect(x, y1, T, y2-y1);
+  hs(80,180,80); hs(300,520,80); hs(640,920,80);
+  hs(80,200,626); hs(280,920,626);
+  vs(80,80,640);
+  vs(906,80,250); vs(906,330,640);
+  vs(420,80,200); vs(420,280,640);
+  hs(420,600,360); hs(680,920,360);
+  vs(700,80,200); vs(700,270,360);
+  hs(80,250,470); hs(320,420,470);
+  g.fillStyle = '#333';
+  [[180,300],[520,640]].forEach(([a,b])=>{ g.fillRect(a,84,b-a,2); g.fillRect(a,90,b-a,2); });
+  g.fillRect(910,250,2,80); g.fillRect(916,250,2,80);
+  g.strokeStyle = '#444'; g.lineWidth = 1.5;
+  const door = (px,py,r,a0,a1,lx,ly,ccw)=>{ g.beginPath(); g.moveTo(px,py); g.lineTo(lx,ly); g.stroke(); g.beginPath(); g.arc(px,py,r,a0,a1,!!ccw); g.stroke(); };
+  door(280,626,80,-Math.PI/2,-Math.PI,280,546,true);
+  door(434,200,80,0,Math.PI/2,514,200);
+  door(600,374,80,0,Math.PI/2,680,374);
+  door(714,200,70,0,Math.PI/2,784,200);
+  door(250,470,70,-Math.PI/2,0,250,400);
+  g.lineWidth = 2;
+  g.strokeRect(730,110,150,170); g.strokeRect(730,110,150,40);
+  g.strokeRect(470,120,180,70); g.strokeRect(470,120,180,18);
+  g.beginPath(); g.arc(560,250,38,0,Math.PI*2); g.stroke();
+  g.strokeRect(460,560,420,50);
+  g.beginPath(); g.ellipse(150,560,22,30,0,0,Math.PI*2); g.stroke();
+  g.strokeRect(330,500,70,110);
+  g.strokeRect(110,110,160,220); g.strokeRect(110,110,160,40);
+  g.fillStyle = '#222'; g.font = '600 17px Inter, Arial, sans-serif'; g.textAlign = 'center';
+  g.fillText('KAMAR 2', 250, 380); g.fillText('RUANG TAMU', 560, 320);
+  g.fillText('KAMAR UTAMA', 800, 320); g.fillText('KM', 230, 560); g.fillText('DAPUR', 670, 480);
+  g.font = '500 14px Inter, Arial, sans-serif'; g.fillText('12.00 m', 500, 690);
+  const img = new Image();
+  img.onload = ()=>{ loadImage(img, {width:12}); toast('Contoh denah 12 m dimuat.'); };
+  img.src = c.toDataURL('image/png');
+}
+$('demo').onclick = demoPlan;
+
+/* ================= 3D model upload + compression ================= */
+const LEVELS = {
+  ringan:   {tex:2048, tris:Infinity, err:0,    hint:'Tekstur maks 2048 px dan JPEG, geometri hanya dirapikan.'},
+  seimbang: {tex:1024, tris:60000,    err:0.02, hint:'Tekstur maks 1024 px, geometri disederhanakan ke ±60 ribu segitiga.'},
+  kuat:     {tex:512,  tris:15000,    err:0.06, hint:'Tekstur maks 512 px, geometri ±15 ribu segitiga. Paling ringan, detail berkurang.'},
+};
+let level = 'seimbang';
+function setLevel(l){
+  level = l;
+  document.querySelectorAll('#level button').forEach(b=>b.classList.toggle('on', b.dataset.l === l));
+  $('levelHint').textContent = LEVELS[l].hint;
+}
+document.querySelectorAll('#level button').forEach(b=>b.onclick = ()=>setLevel(b.dataset.l));
+setLevel('seimbang');
+
+const TEX_KEYS = ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap','alphaMap','bumpMap','displacementMap',
+                  'clearcoatMap','clearcoatNormalMap','clearcoatRoughnessMap','sheenColorMap','sheenRoughnessMap','transmissionMap','specularColorMap','specularIntensityMap'];
+const matsOf = o => Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+const triCount = g => (g.index ? g.index.count : g.attributes.position.count) / 3;
+
+function modelStats(root){
+  let tris = 0, verts = 0, meshes = 0;
+  const mats = new Set(), imgs = new Map();
+  root.traverse(o=>{
+    if(!o.isMesh) return;
+    meshes++;
+    verts += o.geometry.attributes.position.count;
+    tris += triCount(o.geometry);
+    for(const m of matsOf(o)){
+      mats.add(m);
+      for(const k of TEX_KEYS){ const t = m[k]; if(t && t.image && t.image.width) imgs.set(t.image, Math.max(t.image.width, t.image.height)); }
+    }
+  });
+  let maxTex = 0; imgs.forEach(v=>maxTex = Math.max(maxTex, v));
+  return {tris:Math.round(tris), verts, meshes, mats:mats.size, textures:imgs.size, maxTex};
+}
+
+function plainGeometry(g){
+  for(const [name, a] of Object.entries(g.attributes)){
+    const needFloat = name === 'position' && !(a.array instanceof Float32Array);
+    if(!a.isInterleavedBufferAttribute && !needFloat) continue;
+    const k = a.itemSize, n = a.count, arr = new Float32Array(n*k);
+    for(let i=0;i<n;i++){
+      arr[i*k] = a.getX(i);
+      if(k>1) arr[i*k+1] = a.getY(i);
+      if(k>2) arr[i*k+2] = a.getZ(i);
+      if(k>3) arr[i*k+3] = a.getW(i);
+    }
+    g.setAttribute(name, new THREE.BufferAttribute(arr, k, false));
+  }
+  return g;
+}
+
+function simplifyGeometry(g, ratio, err){
+  const pos = g.attributes.position;
+  const idx = g.index ? new Uint32Array(g.index.array) : Uint32Array.from({length:pos.count}, (_, i)=>i);
+  const target = Math.max(3, Math.floor(idx.length * ratio / 3) * 3);
+  if(target >= idx.length) return g;
+  const [newIdx] = MeshoptSimplifier.simplify(idx, pos.array, 3, target, err);
+  if(!newIdx.length || newIdx.length >= idx.length) return g;
+  const remap = new Int32Array(pos.count).fill(-1); let n = 0;
+  for(const v of newIdx) if(remap[v] < 0) remap[v] = n++;
+  const ng = new THREE.BufferGeometry();
+  for(const [name, a] of Object.entries(g.attributes)){
+    const k = a.itemSize, arr = new a.array.constructor(n*k);
+    for(let v=0; v<pos.count; v++){ const r = remap[v]; if(r < 0) continue; for(let c=0;c<k;c++) arr[r*k+c] = a.array[v*k+c]; }
+    ng.setAttribute(name, new THREE.BufferAttribute(arr, k, a.normalized));
+  }
+  const ni = n < 65535 ? new Uint16Array(newIdx.length) : new Uint32Array(newIdx.length);
+  for(let i=0;i<newIdx.length;i++) ni[i] = remap[newIdx[i]];
+  ng.setIndex(new THREE.BufferAttribute(ni, 1));
+  ng.computeBoundingBox(); ng.computeBoundingSphere();
+  return ng;
+}
+
+const isDrawable = img => (typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement) ||
+  (typeof HTMLCanvasElement !== 'undefined' && img instanceof HTMLCanvasElement) ||
+  (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap);
+
+async function compressModel(root, L){
+  await MeshoptSimplifier.ready;
+  const meshes = []; root.traverse(o=>{ if(o.isMesh) meshes.push(o); });
+  let total = 0; meshes.forEach(m=>total += triCount(m.geometry));
+  const ratio = Math.min(1, L.tris / Math.max(1, total));
+  for(const m of meshes){
+    let g = plainGeometry(m.geometry);
+    const safe = !m.isSkinnedMesh && !Object.keys(g.morphAttributes).length && !Array.isArray(m.material) && g.groups.length <= 1;
+    if(safe){
+      try{ const w = mergeVertices(g, 1e-5); if(w) g = w; }catch(e){}
+      if(ratio < 1 && triCount(g) > 300) g = simplifyGeometry(g, ratio, L.err);
+    }
+    if(g !== m.geometry){ m.geometry.dispose(); m.geometry = g; }
+  }
+  const done = new Map();
+  root.traverse(o=>{
+    if(!o.isMesh) return;
+    for(const mat of matsOf(o)) for(const k of TEX_KEYS){
+      const t = mat[k]; if(!t || !t.image) continue;
+      const img = t.image;
+      if(!done.has(img)){
+        let c = null;
+        if(isDrawable(img) && img.width && img.height){
+          const s = Math.min(1, L.tex / Math.max(img.width, img.height));
+          if(s < 1){
+            c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(img.width * s)); c.height = Math.max(1, Math.round(img.height * s));
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          }
+        }
+        done.set(img, c);
+      }
+      const c = done.get(img);
+      if(c){ t.image = c; t.needsUpdate = true; }
+      const alpha = k === 'alphaMap' || (k === 'map' && (mat.transparent || mat.alphaTest > 0));
+      t.userData.mimeType = alpha ? 'image/png' : 'image/jpeg';
+    }
+  });
+}
+
+const gltfLoader = new GLTFLoader();
+gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+async function parseModel(name, buf){
+  const ext = name.split('.').pop().toLowerCase();
+  if(ext === 'glb' || ext === 'gltf'){
+    try{
+      const gltf = await gltfLoader.parseAsync(buf, '');
+      return {root: gltf.scene, anims: gltf.animations.length};
+    }catch(e){
+      const m = String(e && e.message || e);
+      if(/DRACO/i.test(m)) throw new Error('Model memakai kompresi Draco yang belum didukung. Ekspor ulang tanpa Draco.');
+      if(/KTX2|basis/i.test(m)) throw new Error('Tekstur KTX2 belum didukung. Ekspor ulang dengan PNG/JPG.');
+      if(ext === 'gltf') throw new Error('File .gltf ini butuh file terpisah (.bin/tekstur). Pakai .glb.');
+      throw new Error('File tidak bisa dibaca: ' + m);
+    }
+  }
+  if(ext === 'obj') return {root: new OBJLoader().parse(new TextDecoder().decode(buf)), anims:0};
+  throw new Error('Format belum didukung. Pakai GLB, GLTF, atau OBJ.');
+}
+
+const reports = []; // {id, name, before, after, glb, template}
+let repSeq = 0;
+
+function renderReport(r){
+  let el = document.getElementById('rep-' + r.id);
+  if(!el){ el = document.createElement('div'); el.className = 'card'; el.id = 'rep-' + r.id; $('reports').prepend(el); }
+  if(r.error){
+    el.innerHTML = `<div class="card-h"><b>${esc(r.name)}</b><span class="pill busy">Gagal</span></div><p class="note" style="margin:0">${esc(r.error)}</p>`;
+    return;
+  }
+  if(!r.after){
+    el.innerHTML = `<div class="card-h"><b>${esc(r.name)}</b><span class="pill busy">Memproses…</span></div><p class="note" style="margin:0">Membaca dan mengompres model…</p>`;
+    return;
+  }
+  const b = r.before, a = r.after;
+  const saved = Math.round((1 - a.size / b.size) * 100);
+  const row = (label, x, y) => `<tr><td>${label}</td><td>${x}<span class="arrow">→</span><b>${y}</b></td></tr>`;
+  const tex = s => s.textures ? `${s.textures} × ${nf(s.maxTex)} px` : '–';
+  const notes = [];
+  if(r.unit) notes.push(`Skala otomatis ${r.unit}.`);
+  if(r.anims) notes.push(`${r.anims} animasi tidak disertakan.`);
+  el.innerHTML = `
+    <div class="card-h"><b title="${esc(r.name)}">${esc(r.name)}</b><span class="pill">${saved > 0 ? '−' + saved + '%' : 'sudah ringan'}</span></div>
+    <table class="rep">
+      ${row('Ukuran file', fmtBytes(b.size), fmtBytes(a.size))}
+      ${row('Segitiga', nf(b.tris), nf(a.tris))}
+      ${row('Vertex', nf(b.verts), nf(a.verts))}
+      ${row('Tekstur', tex(b), tex(a))}
+      <tr><td>Mesh / material</td><td>${b.meshes} / ${b.mats}</td></tr>
+      <tr><td>Kompresi</td><td>${esc(r.levelName)}</td></tr>
+    </table>
+    ${notes.length ? `<p class="note">${esc(notes.join(' '))}</p>` : ''}
+    <div class="row2">
+      <button class="btn sm" data-act="add">Tambah lagi</button>
+      <button class="btn sm" data-act="dl">Unduh GLB kecil</button>
+    </div>`;
+  el.querySelector('[data-act=add]').onclick = ()=>placeItem(r);
+  el.querySelector('[data-act=dl]').onclick = ()=>saveGLB(r.glb, r.name.replace(/\.[^.]+$/, '') + '-kompres');
+}
+
+// OBJ and some GLBs use Phong/Lambert/Basic; convert to PBR so lighting, GLB and USDZ export behave the same
+function toStandardMaterials(root){
+  const cache = new Map();
+  const conv = m => {
+    if(!m || m.isMeshStandardMaterial) return m;
+    if(cache.has(m)) return cache.get(m);
+    const n = new THREE.MeshStandardMaterial({
+      name: m.name, color: m.color ? m.color.clone() : 0xcccccc, map: m.map || null, normalMap: m.normalMap || null,
+      alphaMap: m.alphaMap || null, transparent: m.transparent, opacity: m.opacity, side: m.side, alphaTest: m.alphaTest || 0,
+      emissive: m.emissive ? m.emissive.clone() : 0x000000, emissiveMap: m.emissiveMap || null, roughness: 0.8, metalness: 0,
+      vertexColors: !!m.vertexColors
+    });
+    cache.set(m, n); return n;
+  };
+  root.traverse(o=>{ if(o.isMesh) o.material = Array.isArray(o.material) ? o.material.map(conv) : conv(o.material); });
+}
+
+async function importModel(name, size, getBuf){
+  const r = {id: ++repSeq, name};
+  reports.push(r); renderReport(r);
+  try{
+    if(size > 150 * 1048576) throw new Error('File lebih dari 150 MB, terlalu besar untuk diproses di browser.');
+    const {root, anims} = await parseModel(name, await getBuf());
+    toStandardMaterials(root);
+    root.updateMatrixWorld(true);
+    const before = {...modelStats(root), size};
+    const L = LEVELS[level];
+    await compressModel(root, L);
+    const glb = await new GLTFExporter().parseAsync(root, {binary:true});
+    const after = {...modelStats(root), size: glb.byteLength};
+    // auto unit: very large models are usually in cm or mm
+    const box = new THREE.Box3().setFromObject(root), sz = box.getSize(new THREE.Vector3());
+    const maxD = Math.max(sz.x, sz.y, sz.z);
+    let unit = '', k = 1;
+    if(maxD > 2000){ k = 0.001; unit = 'mm → m'; } else if(maxD > 60){ k = 0.01; unit = 'cm → m'; }
+    root.scale.multiplyScalar(k);
+    root.updateMatrixWorld(true);
+    const b2 = new THREE.Box3().setFromObject(root), c = b2.getCenter(new THREE.Vector3());
+    root.position.x -= c.x; root.position.z -= c.z; root.position.y -= b2.min.y;
+    root.traverse(o=>{ if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+    const template = new THREE.Group(); template.name = name.replace(/\.[^.]+$/, ''); template.add(root);
+    Object.assign(r, {before, after, glb, template, unit, anims, levelName: level[0].toUpperCase() + level.slice(1)});
+    renderReport(r);
+    placeItem(r, true);
+    if(!model && items.children.length === 1){ modelSize = Math.max(3, Math.max(sz.x, sz.y, sz.z) * k * 2.5); fitView('iso'); }
+  }catch(e){
+    console.error(e);
+    r.error = e.message || String(e);
+    renderReport(r);
+    toast(r.error, 4000);
+  }
+}
+
+function placeItem(r, first){
+  const obj = r.template.clone(true);
+  if(!first){
+    const n = items.children.length;
+    obj.position.set((n % 4) * 0.6 - 0.9, 0, Math.floor(n / 4) * 0.6);
+  }
+  items.add(obj);
+  select(obj);
+  refreshEmpty();
+}
+
+dropZone($('mdrop'), $('mfile'), async fs=>{
+  for(const f of fs) await importModel(f.name, f.size, ()=>f.arrayBuffer());
+});
+
+async function demoModel(){
+  $('mdemo').disabled = true;
+  try{
+    const geo = new THREE.TorusKnotGeometry(0.32, 0.1, 720, 96);
+    const N = 2048, c = document.createElement('canvas'); c.width = c.height = N;
+    const g = c.getContext('2d');
+    const grad = g.createLinearGradient(0, 0, N, N);
+    grad.addColorStop(0, '#c7643b'); grad.addColorStop(0.5, '#e9c46a'); grad.addColorStop(1, '#2a9d8f');
+    g.fillStyle = grad; g.fillRect(0, 0, N, N);
+    const id = g.getImageData(0, 0, N, N), d = id.data;
+    for(let i=0;i<d.length;i+=4){ const n = (Math.random()*36 - 18) | 0; d[i]+=n; d[i+1]+=n; d[i+2]+=n; }
+    g.putImageData(id, 0, 0);
+    g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 6;
+    for(let i=0;i<N;i+=64){ g.beginPath(); g.moveTo(i,0); g.lineTo(i,N); g.stroke(); }
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({map:tex, roughness:0.4, metalness:0.1}));
+    mesh.name = 'Patung';
+    const buf = await new GLTFExporter().parseAsync(mesh, {binary:true});
+    geo.dispose(); tex.dispose();
+    await importModel('contoh-patung.glb', buf.byteLength, async ()=>buf);
+  } finally { $('mdemo').disabled = false; }
+}
+$('mdemo').onclick = demoModel;
+
+/* ================= Selection & interaction ================= */
+const tc = new TransformControls(camera, renderer.domElement);
+tc.setSize(0.9);
+tc.addEventListener('dragging-changed', e=>{ controls.enabled = !e.value; });
+scene.add(tc);
+let selected = null, selBox = null;
+
+function setMode(mode){
+  tc.setMode(mode);
+  tc.showX = tc.showZ = true; tc.showY = true;
+  if(mode === 'rotate'){ tc.showX = false; tc.showZ = false; }
+  document.querySelectorAll('#selbar [data-mode]').forEach(b=>b.classList.toggle('on', b.dataset.mode === mode));
+}
+function select(obj){
+  selected = obj;
+  if(selBox){ scene.remove(selBox); selBox.dispose?.(); selBox = null; }
+  if(obj){
+    tc.attach(obj);
+    selBox = new THREE.BoxHelper(obj, 0x1f7a5c);
+    scene.add(selBox);
+    $('selName').textContent = obj.name || 'Model';
+    $('selbar').hidden = false;
+  } else {
+    tc.detach();
+    $('selbar').hidden = true;
+  }
+}
+function toFloor(obj){
+  obj.updateMatrixWorld(true);
+  const b = new THREE.Box3().setFromObject(obj);
+  obj.position.y -= b.min.y;
+}
+function duplicate(){
+  if(!selected) return;
+  const c = selected.clone(true);
+  c.position.x += 0.6; c.position.z += 0.6;
+  items.add(c); select(c);
+}
+function remove(){
+  if(!selected) return;
+  items.remove(selected); select(null); refreshEmpty();
+}
+document.querySelectorAll('#selbar [data-mode]').forEach(b=>b.onclick = ()=>setMode(b.dataset.mode));
+$('selFloor').onclick = ()=>selected && toFloor(selected);
+$('selDup').onclick = duplicate;
+$('selDel').onclick = remove;
+setMode('translate');
+
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let down = null;
+renderer.domElement.addEventListener('pointerdown', e=>{ down = {x:e.clientX, y:e.clientY, axis:tc.axis}; });
+renderer.domElement.addEventListener('pointerup', e=>{
+  if(!down || walk.on){ down = null; return; }
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), axis = down.axis;
+  down = null;
+  if(moved > 6 || axis) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObjects(items.children, true)[0];
+  if(hit){ let o = hit.object; while(o.parent && o.parent !== items) o = o.parent; select(o); }
+  else select(null);
+});
+const WALK_KEYS = new Set(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','shift']);
+window.addEventListener('keyup', e=>walk.keys.delete(e.key.toLowerCase()));
+window.addEventListener('blur', ()=>walk.keys.clear());
+window.addEventListener('keydown', e=>{
+  if(e.target.closest('input, textarea, select')) return;
+  if(walk.on){
+    const k = e.key.toLowerCase();
+    if(WALK_KEYS.has(k)){ walk.keys.add(k); e.preventDefault(); }
+    else if(k === 'escape') exitWalk();
+    return;
+  }
+  if(!selected) return;
+  const k = e.key.toLowerCase();
+  if(k === 'g' || k === 'w') setMode('translate');
+  else if(k === 'r' || k === 'e') setMode('rotate');
+  else if(k === 's') setMode('scale');
+  else if(k === 'd') duplicate();
+  else if(k === 'f') toFloor(selected);
+  else if(k === 'delete' || k === 'backspace'){ e.preventDefault(); remove(); }
+  else if(k === 'escape') select(null);
+});
+
+/* ================= Walk mode ================= */
+const walk = {on:false, yaw:0, pitch:0, keys:new Set(), joy:{x:0, y:0}, saved:null, look:null};
+const EYE = 1.6, RADIUS = 0.22;
+function solidAt(x, z){
+  if(!walkGrid) return false;
+  const {solid, W, H, s, cx, cy} = walkGrid;
+  const gx = Math.round(x / s + cx), gy = Math.round(z / s + cy);
+  if(gx < 0 || gy < 0 || gx >= W || gy >= H) return false;
+  return solid[gy*W + gx] === 1;
+}
+function blocked(x, z){
+  if(solidAt(x, z)) return true;
+  for(let k=0;k<8;k++){ const a = k * Math.PI / 4; if(solidAt(x + Math.cos(a)*RADIUS, z + Math.sin(a)*RADIUS)) return true; }
+  return false;
+}
+function spawnPoint(){
+  if(!walkGrid) return [0, Math.max(3, modelSize * 0.6)];
+  // nearest free spot to the plan centre, scanning outward
+  const step = 0.25;
+  for(let rr = 0; rr < modelSize; rr += step){
+    const n = Math.max(1, Math.round(2*Math.PI*rr/step));
+    for(let k=0;k<n;k++){
+      const a = k / n * 2 * Math.PI, x = Math.cos(a)*rr, z = Math.sin(a)*rr;
+      if(!blocked(x, z) && !blocked(x + 0.4, z) && !blocked(x - 0.4, z)) return [x, z];
+    }
+  }
+  return [0, 0];
+}
+function enterWalk(){
+  if(!model && !items.children.length){ toast('Muat denah dulu untuk berjalan di dalamnya.'); return; }
+  select(null);
+  walk.saved = {pos: camera.position.clone(), target: controls.target.clone()};
+  walk.on = true;
+  controls.enabled = false; tc.enabled = false;
+  camera.fov = 70; camera.updateProjectionMatrix();
+  const [x, z] = spawnPoint();
+  camera.position.set(x, EYE, z);
+  // face the direction with the most free space
+  let bestYaw = 0, bestD = -1;
+  for(let k=0;k<16;k++){
+    const yaw = k * Math.PI / 8, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
+    let d = 0; while(d < 15 && !blocked(x + fx*d, z + fz*d)) d += 0.2;
+    if(d > bestD){ bestD = d; bestYaw = yaw; }
+  }
+  walk.yaw = bestYaw; walk.pitch = -0.05;
+  camera.rotation.order = 'YXZ';
+  $('walkhud').classList.add('on');
+  document.querySelector('.toolbar').style.display = 'none';
+  $('walkBtn').classList.add('primary');
+  const touch = matchMedia('(pointer:coarse)').matches;
+  $('walkHint').textContent = touch ? 'Seret layar untuk melihat, pakai joystick untuk berjalan.' :
+    'Seret untuk melihat. W A S D / panah untuk berjalan, Shift untuk lari.';
+}
+function exitWalk(){
+  if(!walk.on) return;
+  walk.on = false; walk.keys.clear(); walk.joy.x = walk.joy.y = 0;
+  $('walkhud').classList.remove('on');
+  document.querySelector('.toolbar').style.display = '';
+  $('walkBtn').classList.remove('primary');
+  camera.fov = 45; camera.updateProjectionMatrix();
+  camera.position.copy(walk.saved.pos); controls.target.copy(walk.saved.target);
+  controls.enabled = true; tc.enabled = true;
+  controls.update();
+}
+$('walkBtn').onclick = ()=> walk.on ? exitWalk() : enterWalk();
+$('walkExit').onclick = exitWalk;
+$('viewTop').addEventListener('click', exitWalk, true);
+$('viewIso').addEventListener('click', exitWalk, true);
+
+// look by dragging on the canvas
+renderer.domElement.addEventListener('pointerdown', e=>{
+  if(!walk.on) return;
+  walk.look = {id:e.pointerId, x:e.clientX, y:e.clientY};
+  try{ renderer.domElement.setPointerCapture(e.pointerId); }catch(_){}
+});
+renderer.domElement.addEventListener('pointermove', e=>{
+  if(!walk.on || !walk.look || walk.look.id !== e.pointerId) return;
+  const k = e.pointerType === 'touch' ? 0.006 : 0.0045;
+  walk.yaw -= (e.clientX - walk.look.x) * k;
+  walk.pitch = Math.max(-1.35, Math.min(1.35, walk.pitch - (e.clientY - walk.look.y) * k));
+  walk.look.x = e.clientX; walk.look.y = e.clientY;
+});
+['pointerup','pointercancel'].forEach(t=>renderer.domElement.addEventListener(t, e=>{ if(walk.look && walk.look.id === e.pointerId) walk.look = null; }));
+
+// joystick
+const joy = $('joy'), knob = $('joyKnob');
+let joyId = null;
+function joyMove(e){
+  const r = joy.getBoundingClientRect(), R = r.width / 2;
+  let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R);
+  const len = Math.hypot(dx, dy); if(len > R){ dx *= R/len; dy *= R/len; }
+  walk.joy.x = dx / R; walk.joy.y = dy / R;
+  knob.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+joy.addEventListener('pointerdown', e=>{ e.stopPropagation(); joyId = e.pointerId; joy.setPointerCapture(e.pointerId); joyMove(e); });
+joy.addEventListener('pointermove', e=>{ if(e.pointerId === joyId) joyMove(e); });
+['pointerup','pointercancel'].forEach(t=>joy.addEventListener(t, e=>{ if(e.pointerId !== joyId) return; joyId = null; walk.joy.x = walk.joy.y = 0; knob.style.transform = ''; }));
+
+const clock = new THREE.Clock();
+function stepWalk(dt){
+  const K = walk.keys;
+  let f = (K.has('w') || K.has('arrowup') ? 1 : 0) - (K.has('s') || K.has('arrowdown') ? 1 : 0) - walk.joy.y;
+  let st = (K.has('d') || K.has('arrowright') ? 1 : 0) - (K.has('a') || K.has('arrowleft') ? 1 : 0) + walk.joy.x;
+  const len = Math.hypot(f, st); if(len > 1){ f /= len; st /= len; }
+  const speed = (K.has('shift') ? 3.4 : 1.7) * dt;
+  const sy = Math.sin(walk.yaw), cy = Math.cos(walk.yaw);
+  const dx = (-sy * f + cy * st) * speed, dz = (-cy * f - sy * st) * speed;
+  const p = camera.position;
+  if(dx && !blocked(p.x + dx, p.z)) p.x += dx;
+  if(dz && !blocked(p.x, p.z + dz)) p.z += dz;
+  p.y = EYE;
+  camera.rotation.set(walk.pitch, walk.yaw, 0);
+}
+
+renderer.setAnimationLoop(()=>{
+  const dt = Math.min(0.05, clock.getDelta());
+  if(walk.on) stepWalk(dt);
+  else controls.update();
+  if(selBox) selBox.update();
+  renderer.render(scene, camera);
+});
+/* ================= AR (model-viewer) ================= */
+let mvLoaded = null, arUrl = null, arScale = 0.02;
+function loadModelViewer(){
+  if(!mvLoaded) mvLoaded = import('https://cdn.jsdelivr.net/npm/@google/model-viewer@4.1.0/dist/model-viewer.min.js');
+  return mvLoaded;
+}
+function sceneForExport(k){
+  const g = new THREE.Group(); g.name = 'Denah3D-AR';
+  if(model) g.add(model.clone(true));
+  if(items.children.length) g.add(items.clone(true));
+  g.scale.setScalar(k);
+  g.updateMatrixWorld(true);
+  return g;
+}
+async function prepareAR(){
+  const msg = $('arMsg'), go = $('arGo');
+  go.disabled = true; msg.textContent = 'Menyiapkan model…';
+  try{
+    await loadModelViewer();
+    const buf = await new GLTFExporter().parseAsync(sceneForExport(arScale), {binary:true});
+    if(arUrl) URL.revokeObjectURL(arUrl);
+    arUrl = URL.createObjectURL(new Blob([buf], {type:'model/gltf-binary'}));
+    let mv = document.querySelector('#mvWrap model-viewer');
+    if(!mv){
+      mv = document.createElement('model-viewer');
+      mv.setAttribute('ar', '');
+      mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
+      mv.setAttribute('ar-placement', 'floor');
+      mv.setAttribute('camera-controls', '');
+      mv.setAttribute('shadow-intensity', '1');
+      mv.setAttribute('touch-action', 'pan-y');
+      mv.setAttribute('environment-image', 'neutral');
+      mv.setAttribute('camera-orbit', '35deg 55deg auto');
+      mv.addEventListener('load', ()=>{
+        const ok = mv.canActivateAR;
+        $('arGo').disabled = !ok;
+        $('arMsg').textContent = ok
+          ? 'Siap. Ketuk "Buka kamera AR", arahkan kamera ke lantai, lalu taruh modelnya.'
+          : 'Kamera AR tidak bisa dibuka dari tampilan ini (butuh HP dengan dukungan AR, dan beberapa aplikasi memblokirnya di dalam halaman tersemat). Di iPhone/iPad: unduh USDZ, buka zip-nya di app Files, lalu ketuk file .usdz untuk AR Quick Look.';
+      });
+      mv.addEventListener('error', ()=>{ $('arMsg').textContent = 'Pratinjau model-viewer tidak bisa dimuat di tampilan ini. File USDZ/GLB tetap bisa diunduh.'; });
+      mv.addEventListener('ar-status', e=>{ if(e.detail.status === 'failed') $('arMsg').textContent = 'Sesi AR gagal dibuka di perangkat ini. Coba file USDZ (iPhone) atau GLB.'; });
+      $('mvWrap').appendChild(mv);
+    }
+    mv.setAttribute('ar-scale', arScale === 1 ? 'fixed' : 'auto');
+    mv.src = arUrl;
+  }catch(e){
+    console.error(e);
+    msg.textContent = 'model-viewer gagal dimuat. File USDZ tetap bisa diunduh untuk AR di iPhone/iPad.';
+  }
+}
+$('arBtn').onclick = ()=>{
+  if(!model && !items.children.length){ toast('Belum ada model untuk dilihat di AR.'); return; }
+  exitWalk(); select(null);
+  $('arModal').classList.add('on');
+  prepareAR();
+};
+$('arClose').onclick = ()=>$('arModal').classList.remove('on');
+$('arModal').addEventListener('click', e=>{ if(e.target.id === 'arModal') $('arModal').classList.remove('on'); });
+document.querySelectorAll('#arScale button').forEach(b=>b.onclick = ()=>{
+  arScale = +b.dataset.k;
+  document.querySelectorAll('#arScale button').forEach(x=>x.classList.toggle('on', x === b));
+  prepareAR();
+});
+$('arGo').onclick = ()=>{
+  const mv = document.querySelector('#mvWrap model-viewer');
+  try{ mv && mv.activateAR(); }catch(e){ $('arMsg').textContent = 'AR tidak bisa dibuka: ' + e.message; }
+};
+$('arUsdz').onclick = async ()=>{
+  const btn = $('arUsdz'); btn.disabled = true;
+  try{
+    const data = await new USDZExporter().parse(sceneForExport(arScale));
+    await saveFile(data, 'denah-3d-ar', 'usdz');
+  }catch(e){ console.error(e); toast('Gagal membuat USDZ.'); }
+  finally{ btn.disabled = false; }
+};
+
+
+/* ================= Export ================= */
+let downloads = null;
+(async()=>{ try{ if(window.claude && window.claude.use) downloads = await window.claude.use('downloads'); }catch(e){ downloads = null; } })();
+
+async function saveFile(buf, base, ext){
+  if(downloads){
+    try{
+      await downloads.save({filename: base + '.zip', data: zipSync({[base + '.' + ext]: new Uint8Array(buf)})});
+      toast('Tersimpan: ' + base + '.zip');
+    }catch(e){
+      toast(e && e.code === 'declined' ? 'Unduhan dibatalkan.' : 'Gagal menyimpan file' + (e && e.message ? ': ' + e.message : '.'));
+    }
+  } else {
+    const url = URL.createObjectURL(new Blob([buf], {type: ext === 'usdz' ? 'model/vnd.usdz+zip' : 'model/gltf-binary'}));
+    const a = document.createElement('a'); a.href = url; a.download = base + '.' + ext;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 8000);
+    toast('Mengunduh ' + base + '.' + ext);
+  }
+}
+const saveGLB = (buf, base) => saveFile(buf, base, 'glb');
+
+ui.exportBtn.onclick = async ()=>{
+  const parts = [model, items.children.length ? items : null].filter(Boolean);
+  if(!parts.length){ toast('Belum ada yang bisa diunduh.'); return; }
+  ui.exportBtn.disabled = true;
+  try{
+    const buf = await new GLTFExporter().parseAsync(parts.length === 1 ? parts[0] : parts, {binary:true});
+    await saveGLB(buf, 'denah-3d');
+  }catch(e){ console.error(e); toast('Ekspor gagal.'); }
+  finally{ ui.exportBtn.disabled = false; }
+};
+
+labels();
+refreshEmpty();
+window.__app = { walk, enterWalk, exitWalk, get lastRes(){ return lastRes; }, get model(){ return model; }, items, reports, demoPlan, demoModel, analyzeNow: ()=>src && analyze() };
+</script>
+</body>
+</html>
